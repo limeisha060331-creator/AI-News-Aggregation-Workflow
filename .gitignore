@@ -1,0 +1,15 @@
+# 本地状态与运行产物，不入版本库
+scheduler/state/
+scheduler/logs/
+scheduler/outbox/
+
+# 含密钥的本地配置：仓库里只放 config.example.json
+scheduler/config.json
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 调试与临时产物
+debug.log
+%SystemDrive%/

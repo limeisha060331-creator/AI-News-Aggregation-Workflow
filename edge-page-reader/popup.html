@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>网页取用器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="popup">
+  <header class="popup__head">
+    <div class="popup__site" id="siteName">读取中…</div>
+    <h1 class="popup__title" id="pageTitle">正在读取当前网页</h1>
+    <div class="popup__meta" id="pageMeta"></div>
+  </header>
+
+  <div class="popup__toolbar">
+    <label class="field field--inline">
+      <span class="field__label">格式</span>
+      <select id="format">
+        <option value="markdown">Markdown 正文</option>
+        <option value="text">纯文本</option>
+        <option value="json">JSON（含元信息）</option>
+        <option value="selection">选中内容</option>
+      </select>
+    </label>
+    <button class="button button--ghost" id="reload" type="button">重新读取</button>
+  </div>
+
+  <textarea id="preview" class="preview" spellcheck="false" placeholder="正文会显示在这里，可以直接编辑后再复制或推送。"></textarea>
+
+  <div class="popup__actions">
+    <button class="button button--primary" id="copy" type="button">复制</button>
+    <button class="button" id="download" type="button">存为 .md</button>
+    <button class="button" id="push" type="button">推送到接口</button>
+  </div>
+
+  <footer class="popup__foot">
+    <span class="status" id="status"></span>
+    <a href="#" id="openOptions" class="link">设置</a>
+  </footer>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

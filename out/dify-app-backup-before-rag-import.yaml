@@ -1,0 +1,903 @@
+app:
+  description: 从 Hacker News、OpenAI Blog、量子位三个源抓取 AI 资讯，去重后由 LLM 生成中文日报 Markdown（今日头条/重要进展/值得关注，每条带
+    1-5 重要性评分）并推送。
+  icon: 📰
+  icon_background: '#EFF1F4'
+  icon_type: emoji
+  mode: workflow
+  name: AI 资讯聚合日报
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: http-request
+      id: edge-start-hn
+      source: start_node
+      sourceHandle: source
+      target: http_hn
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: edge-hn-codehn
+      source: http_hn
+      sourceHandle: source
+      target: code_hn
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: edge-codehn-openai
+      source: code_hn
+      sourceHandle: source
+      target: http_openai
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: http-request
+      id: edge-openai-qbitai
+      source: http_openai
+      sourceHandle: source
+      target: http_qbitai
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: edge-qbitai-parse
+      source: http_qbitai
+      sourceHandle: source
+      target: code_parse
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: edge-parse-llm
+      source: code_parse
+      sourceHandle: source
+      target: llm_sum
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: edge-llm-build
+      source: llm_sum
+      sourceHandle: source
+      target: code_build
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: edge-build-end
+      source: code_build
+      sourceHandle: source
+      target: end_node
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 入参 history_urls 由外部传入最近已推送的 URL（每行一个），用于跨天去重；留空则只做当天去重。
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: 已推送URL列表
+          max_length: 20000
+          options: []
+          required: false
+          type: paragraph
+          variable: history_urls
+      height: 90
+      id: start_node
+      position:
+        x: 30
+        y: 320
+      positionAbsolute:
+        x: 30
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: Hacker News 首页当前 30 条（front_page），Algolia 一次返回整个列表，不需要循环。
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取 HN
+        type: http-request
+        url: https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage=30
+      height: 90
+      id: http_hn
+      position:
+        x: 334
+        y: 320
+      positionAbsolute:
+        x: 334
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: OpenAI 官方博客 RSS。若返回 404，改成 https://openai.com/blog/rss.xml
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取 OpenAI Blog
+        type: http-request
+        url: https://openai.com/news/rss.xml
+      height: 90
+      id: http_openai
+      position:
+        x: 638
+        y: 320
+      positionAbsolute:
+        x: 638
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: 量子位 RSS。原机器之心 https://www.jiqizhixin.com/rss 已不再返回 RSS（返回网页），改用量子位。
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取量子位
+        type: http-request
+        url: https://www.qbitai.com/feed
+      height: 90
+      id: http_qbitai
+      position:
+        x: 942
+        y: 320
+      positionAbsolute:
+        x: 942
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "# -*- coding: utf-8 -*-\n\"\"\"\nDify 代码节点：解析 Hacker News API 返回的 JSON。\n\
+          \n数据流\n    HTTP 请求节点（拉 HN 数据）-> 本节点（清洗 / 去重 / 格式化）-> 结构化列表\n\n输入\n    hn_json\
+          \          : str | dict | list  HTTP 节点响应体，兼容 Algolia 与 Firebase 两种形状\n\
+          \    tz_offset_hours  : float  输出时间的时区偏移，默认 8（北京时间 UTC+8）\n    time_format\
+          \      : str    strftime 格式，默认 \"%Y-%m-%d %H:%M\"\n    max_items       \
+          \ : int    最多保留多少条，0 表示不限制\n\n输出（对应 Dify 节点的输出变量）\n    stories       : list[dict]\
+          \  每条必含 title / url / time / source，\n                                另附\
+          \ id / author / score / comments / text / time_iso / time_unix\n    count\
+          \         : int  列表长度\n    skipped       : int  因缺标题或结构非法被丢弃的条数\n    deduplicated\
+          \  : int  被去重合并掉的条数\n    error         : str  解析失败原因，正常为空字符串\n\"\"\"\n\n\
+          import json\nimport re\nfrom datetime import datetime, timedelta, timezone\n\
+          from urllib.parse import parse_qsl, urlencode, urlsplit\n\n# ---------------------------------------------------------------------------\
+          \ 常量\n\nHN_ITEM_URL = \"https://news.ycombinator.com/item?id={id}\"\nHN_FALLBACK_SOURCE\
+          \ = \"Hacker News\"\nDEFAULT_TZ_OFFSET_HOURS = 8.0\nDEFAULT_TIME_FORMAT\
+          \ = \"%Y-%m-%d %H:%M\"\nMAX_COLLECT_DEPTH = 4\n\n# 条目列表可能挂在这些字段下（按优先级）\n\
+          _LIST_KEYS = (\"hits\", \"stories\", \"items\", \"results\", \"data\", \"\
+          list\", \"articles\")\n\n_TITLE_KEYS = (\"title\", \"story_title\", \"name\"\
+          , \"headline\")\n_URL_KEYS = (\"url\", \"story_url\", \"link\", \"permalink\"\
+          , \"href\")\n_ID_KEYS = (\"id\", \"objectID\", \"object_id\", \"story_id\"\
+          )\n_TIME_KEYS = (\n    \"time\",\n    \"created_at_i\",\n    \"timestamp\"\
+          ,\n    \"published_at\",\n    \"published\",\n    \"date\",\n    \"created_at\"\
+          ,\n)\n_AUTHOR_KEYS = (\"by\", \"author\", \"user\", \"username\")\n_SCORE_KEYS\
+          \ = (\"score\", \"points\", \"votes\")\n_COMMENT_KEYS = (\"descendants\"\
+          , \"num_comments\", \"comments_count\", \"comments\")\n_SOURCE_KEYS = (\"\
+          source\", \"site\", \"publisher\", \"domain\")\n_TEXT_KEYS = (\"story_text\"\
+          , \"text\", \"description\", \"summary\", \"content\")\n\n# 正文截断长度，供下游 LLM\
+          \ 摘要有足够上下文又不超过提示词预算\nTEXT_LIMIT = 400\n\n# 去重时应当忽略的跟踪参数\n_TRACKING_PARAMS\
+          \ = {\n    \"utm_source\", \"utm_medium\", \"utm_campaign\", \"utm_term\"\
+          , \"utm_content\",\n    \"utm_id\", \"utm_name\", \"fbclid\", \"gclid\"\
+          , \"igshid\", \"mc_cid\", \"mc_eid\",\n    \"ref\", \"ref_src\", \"spm\"\
+          ,\n}\n\n_HOST_ALIASES = {\n    \"x.com\": \"twitter.com\",\n    \"mobile.twitter.com\"\
+          : \"twitter.com\",\n    \"m.twitter.com\": \"twitter.com\",\n    \"old.reddit.com\"\
+          : \"reddit.com\",\n    \"np.reddit.com\": \"reddit.com\",\n    \"www.reddit.com\"\
+          : \"reddit.com\",\n}\n_HOST_PREFIXES = (\"www.\", \"m.\", \"mobile.\", \"\
+          amp.\", \"web.\")\n\n_WHITESPACE_RE = re.compile(r\"\\s+\")\n_NUMERIC_RE\
+          \ = re.compile(r\"^[+-]?\\d+(\\.\\d+)?([eE][+-]?\\d+)?$\")\n\n\n# -----------------------------------------------------------------------\
+          \ 基础工具\n\n\ndef _as_text(value):\n    \"\"\"把任意 JSON 标量安全转成字符串；容器 / 布尔 /\
+          \ None 一律视为空。\"\"\"\n    if value is None or isinstance(value, bool):\n\
+          \        return \"\"\n    if isinstance(value, str):\n        return value\n\
+          \    if isinstance(value, (int, float)):\n        return str(value)\n  \
+          \  return \"\"\n\n\ndef _clean(value):\n    \"\"\"折叠空白并去掉首尾空格，用于净化 title\
+          \ 之类的文本。\"\"\"\n    return _WHITESPACE_RE.sub(\" \", _as_text(value)).strip()\n\
+          \n\ndef _first_present(item, keys):\n    \"\"\"按候选字段名顺序取第一个非空值。\"\"\"\n\
+          \    if not isinstance(item, dict):\n        return \"\"\n    for key in\
+          \ keys:\n        text = _clean(item.get(key))\n        if text:\n      \
+          \      return text\n    return \"\"\n\n\ndef _to_int(value, default=None):\n\
+          \    if value is None or isinstance(value, bool):\n        return default\n\
+          \    if isinstance(value, int):\n        return value\n    if isinstance(value,\
+          \ float):\n        return int(value)\n    text = _as_text(value).strip()\n\
+          \    try:\n        return int(float(text))\n    except ValueError:\n   \
+          \     return default\n\n\ndef _to_float(value, default=0.0):\n    if value\
+          \ is None or isinstance(value, bool):\n        return default\n    if isinstance(value,\
+          \ (int, float)):\n        return float(value)\n    text = _as_text(value).strip()\n\
+          \    try:\n        return float(text)\n    except ValueError:\n        return\
+          \ default\n\n\ndef _clip(text, limit=TEXT_LIMIT):\n    \"\"\"把正文截断到指定长度。\"\
+          \"\"\n    return text[:limit] if text else \"\"\n\n\n# -----------------------------------------------------------------------\
+          \ 时间处理\n\n\ndef _normalize_epoch(number):\n    \"\"\"把秒 / 毫秒 / 微秒 / 纳秒时间戳统一成秒。\"\
+          \"\"\n    magnitude = abs(number)\n    if magnitude >= 1e17:      # 纳秒\n\
+          \        return number / 1e9\n    if magnitude >= 1e14:      # 微秒\n    \
+          \    return number / 1e6\n    if magnitude >= 1e11:      # 毫秒\n        return\
+          \ number / 1e3\n    return number              # 秒\n\n\ndef _parse_iso_datetime(text):\n\
+          \    candidate = text.strip()\n    if candidate.endswith((\"Z\", \"z\")):\n\
+          \        candidate = candidate[:-1] + \"+00:00\"\n    try:\n        parsed\
+          \ = datetime.fromisoformat(candidate)\n    except ValueError:\n        return\
+          \ None\n    if parsed.tzinfo is None:          # 无时区信息时按 UTC 处理\n      \
+          \  parsed = parsed.replace(tzinfo=timezone.utc)\n    try:\n        return\
+          \ parsed.timestamp()\n    except (OSError, OverflowError, ValueError):\n\
+          \        return None\n\n\ndef to_unix_seconds(value):\n    \"\"\"epoch 秒\
+          \ / 毫秒、数字字符串、ISO8601 字符串统一成 Unix 秒；无法识别返回 None。\"\"\"\n    if value is None\
+          \ or isinstance(value, bool):\n        return None\n    if isinstance(value,\
+          \ (int, float)):\n        return _normalize_epoch(float(value))\n\n    text\
+          \ = _as_text(value).strip()\n    if not text:\n        return None\n   \
+          \ if _NUMERIC_RE.match(text):\n        return _normalize_epoch(float(text))\n\
+          \    return _parse_iso_datetime(text)\n\n\ndef format_time(value, tz_offset_hours=DEFAULT_TZ_OFFSET_HOURS,\
+          \ time_format=DEFAULT_TIME_FORMAT):\n    \"\"\"把任意时间表示格式化成字符串；无法识别时返回空字符串。\"\
+          \"\"\n    seconds = to_unix_seconds(value)\n    if seconds is None:\n  \
+          \      return \"\"\n    tzinfo = timezone(timedelta(hours=_to_float(tz_offset_hours)))\n\
+          \    try:\n        return datetime.fromtimestamp(seconds, tzinfo).strftime(time_format)\n\
+          \    except (OSError, OverflowError, ValueError):\n        return \"\"\n\
+          \n\ndef format_time_utc(value):\n    \"\"\"输出 UTC 的 ISO8601（秒级精度，带 Z），便于机器读取。\"\
+          \"\"\n    seconds = to_unix_seconds(value)\n    if seconds is None:\n  \
+          \      return \"\"\n    try:\n        moment = datetime.fromtimestamp(seconds,\
+          \ timezone.utc)\n    except (OSError, OverflowError, ValueError):\n    \
+          \    return \"\"\n    return moment.strftime(\"%Y-%m-%dT%H:%M:%SZ\")\n\n\
+          \n# ---------------------------------------------------------------------\
+          \ URL 处理\n\n\ndef _normalize_host(host):\n    \"\"\"小写化主机名，去掉 www / m /\
+          \ amp 之类前缀并做常见别名归一。\"\"\"\n    host = (host or \"\").lower()\n    for prefix\
+          \ in _HOST_PREFIXES:\n        if host.startswith(prefix) and len(host) >\
+          \ len(prefix):\n            host = host[len(prefix):]\n            break\n\
+          \    return _HOST_ALIASES.get(host, host)\n\n\ndef host_of(url):\n    \"\
+          \"\"从 URL 中取出用于展示的域名。\"\"\"\n    text = _clean(url)\n    if not text:\n\
+          \        return \"\"\n    if \"//\" not in text.split(\"?\", 1)[0]:\n  \
+          \      text = \"https://\" + text\n    return _normalize_host(urlsplit(text).hostname)\n\
+          \n\ndef normalize_url(url):\n    \"\"\"归一化 URL 用于去重：小写主机、补全裸域名、去掉跟踪参数与尾斜杠。\"\
+          \"\"\n    text = _clean(url)\n    if not text:\n        return \"\"\n  \
+          \  if \"//\" not in text.split(\"?\", 1)[0]:\n        text = \"https://\"\
+          \ + text\n    try:\n        parts = urlsplit(text)\n    except ValueError:\n\
+          \        return text.lower().rstrip(\"/\")\n\n    host = _normalize_host(parts.hostname)\n\
+          \    if not host:\n        return text.lower().rstrip(\"/\")\n\n    netloc\
+          \ = host\n    try:\n        if parts.port:\n            netloc = \"%s:%d\"\
+          \ % (host, parts.port)\n    except ValueError:\n        pass\n\n    path\
+          \ = parts.path.rstrip(\"/\") or \"/\"\n    query = urlencode(\n        sorted(\n\
+          \            (key, value)\n            for key, value in parse_qsl(parts.query,\
+          \ keep_blank_values=True)\n            if key.lower() not in _TRACKING_PARAMS\n\
+          \        )\n    )\n    normalized = netloc + path\n    if query:\n     \
+          \   normalized += \"?\" + query\n    return normalized\n\n\ndef extract_source(raw_item,\
+          \ url, synthesized=False):\n    \"\"\"\n    来源判定优先级：\n    1. 数据自带的 source\
+          \ / site / domain 字段\n    2. 链接是本地合成的 HN 讨论页（文本贴、Ask HN）-> 记为 Hacker News\n\
+          \    3. 链接域名\n    \"\"\"\n    explicit = _first_present(raw_item, _SOURCE_KEYS)\n\
+          \    if explicit:\n        return explicit\n    if synthesized:\n      \
+          \  return HN_FALLBACK_SOURCE\n    return host_of(url) or HN_FALLBACK_SOURCE\n\
+          \n\n# --------------------------------------------------------------------\
+          \ 条目构造\n\n\ndef build_story(raw_item, tz_offset_hours=DEFAULT_TZ_OFFSET_HOURS,\
+          \ time_format=DEFAULT_TIME_FORMAT):\n    \"\"\"把单条原始数据规范化；缺标题或无法生成链接时返回\
+          \ None（丢弃）。\"\"\"\n    if not isinstance(raw_item, dict):\n        return\
+          \ None\n\n    title = _first_present(raw_item, _TITLE_KEYS)\n    if not\
+          \ title:\n        return None\n\n    item_id = _first_present(raw_item,\
+          \ _ID_KEYS)\n    url = _first_present(raw_item, _URL_KEYS)\n    synthesized\
+          \ = not url\n    if synthesized:\n        if not item_id:\n            return\
+          \ None                     # 既没链接也没 id，无法生成可点击条目\n        url = HN_ITEM_URL.format(id=item_id)\n\
+          \n    raw_time = _first_present(raw_item, _TIME_KEYS)\n    seconds = to_unix_seconds(raw_time)\n\
+          \n    return {\n        \"title\": title,\n        \"url\": url,\n     \
+          \   \"time\": format_time(raw_time, tz_offset_hours, time_format),\n   \
+          \     \"source\": extract_source(raw_item, url, synthesized),\n        \"\
+          id\": item_id,\n        \"author\": _first_present(raw_item, _AUTHOR_KEYS),\n\
+          \        \"score\": _to_int(_first_present(raw_item, _SCORE_KEYS)),\n  \
+          \      \"comments\": _to_int(_first_present(raw_item, _COMMENT_KEYS)),\n\
+          \        \"text\": _clip(_first_present(raw_item, _TEXT_KEYS)),\n      \
+          \  \"time_iso\": format_time_utc(raw_time),\n        \"time_unix\": int(seconds)\
+          \ if seconds is not None else None,\n    }\n\n\ndef dedupe_key(story):\n\
+          \    \"\"\"同一条新闻可能有多种链接形态，统一用归一化 URL 做键。\"\"\"\n    normalized = normalize_url(story[\"\
+          url\"])\n    if normalized:\n        return \"url:\" + normalized\n    return\
+          \ \"title:\" + _clean(story[\"title\"]).casefold()\n\n\ndef _merge_missing(target,\
+          \ extra):\n    \"\"\"重复条目保留先出现的，只补齐 target 中缺失的字段。\"\"\"\n    # build_story\
+          \ 保证 url 非空，这里同样按“先到先得”补齐其余字段\n    for field in (\"url\", \"time\", \"time_iso\"\
+          , \"time_unix\", \"source\", \"id\", \"author\", \"score\", \"comments\"\
+          ):\n        if target.get(field) in (None, \"\") and extra.get(field) not\
+          \ in (None, \"\"):\n            target[field] = extra[field]\n\n\n# -----------------------------------------------------------------\
+          \ 入口 / 主流程\n\n\ndef _loads(text):\n    try:\n        return json.loads(text)\n\
+          \    except (ValueError, TypeError):\n        return None\n\n\ndef collect_items(payload,\
+          \ depth=0):\n    \"\"\"从各种响应形状里取出条目列表。\"\"\"\n    if payload is None or\
+          \ depth > MAX_COLLECT_DEPTH:\n        return []\n    if isinstance(payload,\
+          \ str):\n        return collect_items(_loads(payload), depth + 1)\n    if\
+          \ isinstance(payload, list):\n        return payload\n    if isinstance(payload,\
+          \ dict):\n        for key in _LIST_KEYS:\n            if key in payload:\n\
+          \                found = collect_items(payload[key], depth + 1)\n      \
+          \          if found:\n                    return found\n        values =\
+          \ list(payload.values())\n        if values and all(isinstance(value, dict)\
+          \ for value in values):\n            return values                    #\
+          \ {\"123\": {...}, \"456\": {...}} 形式\n        if any(key in payload for\
+          \ key in _TITLE_KEYS + _URL_KEYS + _ID_KEYS):\n            return [payload]\
+          \                 # 单个条目\n    return []\n\n\ndef parse_hn_json(\n    hn_json,\n\
+          \    tz_offset_hours=DEFAULT_TZ_OFFSET_HOURS,\n    time_format=DEFAULT_TIME_FORMAT,\n\
+          \    max_items=0,\n):\n    \"\"\"核心逻辑：清洗 + 去重 + 时间格式化，返回 Dify 节点输出。\"\"\"\
+          \n    limit = _to_int(max_items, 0) or 0\n    stories = []\n    index =\
+          \ {}\n    skipped = 0\n    deduplicated = 0\n\n    for raw_item in collect_items(hn_json):\n\
+          \        if limit and len(stories) >= limit:\n            break\n      \
+          \  story = build_story(raw_item, tz_offset_hours, time_format)\n       \
+          \ if story is None:\n            skipped += 1\n            continue\n  \
+          \      key = dedupe_key(story)\n        existing = index.get(key)\n    \
+          \    if existing is None:\n            index[key] = story\n            stories.append(story)\n\
+          \        else:\n            deduplicated += 1\n            _merge_missing(existing,\
+          \ story)\n\n    return {\n        \"stories\": stories,\n        \"count\"\
+          : len(stories),\n        \"skipped\": skipped,\n        \"deduplicated\"\
+          : deduplicated,\n        \"error\": \"\",\n    }\n\n\ndef main(\n    hn_json,\n\
+          \    tz_offset_hours=DEFAULT_TZ_OFFSET_HOURS,\n    time_format=DEFAULT_TIME_FORMAT,\n\
+          \    max_items=0,\n):\n    \"\"\"Dify 代码节点入口，保证不抛异常。\"\"\"\n    try:\n \
+          \       return parse_hn_json(hn_json, tz_offset_hours, time_format, max_items)\n\
+          \    except Exception as exc:                                   # noqa:\
+          \ BLE001\n        return {\n            \"stories\": [],\n            \"\
+          count\": 0,\n            \"skipped\": 0,\n            \"deduplicated\":\
+          \ 0,\n            \"error\": \"%s: %s\" % (type(exc).__name__, exc),\n \
+          \       }\n"
+        code_language: python3
+        desc: 解析 Hacker News 的 JSON：清洗空值、URL 归一化去重、时间格式化，输出 title/url/time/source
+          结构化列表，供下游 code_parse 消费。
+        outputs:
+          count:
+            children: null
+            type: number
+          deduplicated:
+            children: null
+            type: number
+          error:
+            children: null
+            type: string
+          skipped:
+            children: null
+            type: number
+          stories:
+            children: null
+            type: array[object]
+        selected: false
+        title: 解析 HN 列表
+        type: code
+        variables:
+        - value_selector:
+          - http_hn
+          - body
+          value_type: string
+          variable: hn_json
+      height: 54
+      id: code_hn
+      position:
+        x: 334
+        y: 460
+      positionAbsolute:
+        x: 334
+        y: 460
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "import datetime\nimport json\nimport re\nimport xml.etree.ElementTree\
+          \ as ET\nfrom urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit\n\
+          \nTOP_N = 15\nMIN_PER_SOURCE = 3\nATOM = \"{http://www.w3.org/2005/Atom}\"\
+          \nDROP_KEYS = {\"ref\", \"fbclid\", \"gclid\", \"spm\", \"from\", \"source\"\
+          , \"share_token\"}\nENTITIES = (\n    (\"&nbsp;\", \" \"), (\"&amp;\", \"\
+          &\"), (\"&lt;\", \"<\"),\n    (\"&gt;\", \">\"), (\"&quot;\", '\"'), (\"\
+          &#39;\", \"'\"),\n)\n\n\ndef normalize_url(raw: str) -> str:\n    if not\
+          \ raw:\n        return \"\"\n    raw = raw.strip()\n    try:\n        parts\
+          \ = urlsplit(raw)\n    except Exception:\n        return raw\n    host =\
+          \ (parts.hostname or \"\").lower()\n    if not host:\n        return raw\n\
+          \    query = []\n    for key, value in parse_qsl(parts.query, keep_blank_values=False):\n\
+          \        low = key.lower()\n        if low.startswith(\"utm_\") or low in\
+          \ DROP_KEYS:\n            continue\n        query.append((key, value))\n\
+          \    path = parts.path.rstrip(\"/\") or \"/\"\n    return urlunsplit((\"\
+          https\", host, path, urlencode(query), \"\"))\n\n\ndef clean_text(value)\
+          \ -> str:\n    text = value or \"\"\n    text = re.sub(r\"<[^>]+>\", \"\
+          \ \", text)\n    for src, dst in ENTITIES:\n        text = text.replace(src,\
+          \ dst)\n    return re.sub(r\"\\s+\", \" \", text).strip()\n\n\ndef looks_like_html(body:\
+          \ str) -> bool:\n    \"\"\"feed 地址失效时常常返回一个网页，这里用来识别这种情况。\"\"\"\n    head\
+          \ = (body or \"\").strip()[:200].lower()\n    return head.startswith(\"\
+          <!doctype html\") or head.startswith(\"<html\")\n\n\ndef parse_rss(xml_text:\
+          \ str, source: str, weight: int) -> list:\n    items = []\n    if not xml_text:\n\
+          \        return items\n    try:\n        root = ET.fromstring(xml_text.strip())\n\
+          \    except Exception:\n        return items\n    for node in root.iter(\"\
+          item\"):\n        title = clean_text(node.findtext(\"title\"))\n       \
+          \ link = (node.findtext(\"link\") or \"\").strip()\n        if not title\
+          \ or not link:\n            continue\n        items.append({\n         \
+          \   \"title\": title,\n            \"url\": link,\n            \"origin\"\
+          : source,\n            \"weight\": weight,\n            \"score\": 0,\n\
+          \            \"published\": (node.findtext(\"pubDate\") or \"\").strip(),\n\
+          \            \"raw\": clean_text(node.findtext(\"description\"))[:400],\n\
+          \        })\n    for node in root.iter(ATOM + \"entry\"):\n        title\
+          \ = clean_text(node.findtext(ATOM + \"title\"))\n        link_node = node.find(ATOM\
+          \ + \"link\")\n        link = link_node.get(\"href\") if link_node is not\
+          \ None else \"\"\n        if not title or not link:\n            continue\n\
+          \        items.append({\n            \"title\": title,\n            \"url\"\
+          : link.strip(),\n            \"origin\": source,\n            \"weight\"\
+          : weight,\n            \"score\": 0,\n            \"published\": (node.findtext(ATOM\
+          \ + \"updated\") or \"\").strip(),\n            \"raw\": clean_text(node.findtext(ATOM\
+          \ + \"summary\"))[:400],\n        })\n    return items\n\n\ndef map_hn(stories:\
+          \ list) -> list:\n    \"\"\"把 code_hn 节点输出的结构化列表映射成内部条目结构。\"\"\"\n    items\
+          \ = []\n    for row in stories or []:\n        if not isinstance(row, dict):\n\
+          \            continue\n        title = clean_text(row.get(\"title\"))\n\
+          \        url = (row.get(\"url\") or \"\").strip()\n        if not title\
+          \ or not url:\n            continue\n        items.append({\n          \
+          \  \"title\": title,\n            \"url\": url,\n            \"origin\"\
+          : \"HN\",\n            \"weight\": 3,\n            \"score\": int(row.get(\"\
+          score\") or 0),\n            \"published\": row.get(\"time_iso\") or row.get(\"\
+          time\") or \"\",\n            \"raw\": clean_text(row.get(\"text\"))[:400],\n\
+          \        })\n    return items\n\n\ndef pick_top(rows: list) -> list:\n \
+          \   \"\"\"按来源限额挑选，避免单个源把版面刷满；名额之外再用高分条目补满。\"\"\"\n    origins = {row.get(\"\
+          origin\") or \"?\" for row in rows}\n    cap = max(MIN_PER_SOURCE, TOP_N\
+          \ // max(1, len(origins)))\n    picked, overflow, used = [], [], {}\n  \
+          \  for row in rows:\n        origin = row.get(\"origin\") or \"?\"\n   \
+          \     if used.get(origin, 0) < cap:\n            used[origin] = used.get(origin,\
+          \ 0) + 1\n            picked.append(row)\n        else:\n            overflow.append(row)\n\
+          \    picked.extend(overflow[: max(0, TOP_N - len(picked))])\n    return\
+          \ picked[:TOP_N]\n\n\ndef today_in_beijing() -> str:\n    \"\"\"日报日期统一按北京时间算，避免用\
+          \ UTC 跑出前一天。\"\"\"\n    now = datetime.datetime.now(datetime.timezone.utc)\
+          \ + datetime.timedelta(hours=8)\n    return now.strftime(\"%Y-%m-%d\")\n\
+          \n\ndef main(hn_items: list, openai_body: str, qbitai_body: str, history_urls:\
+          \ str) -> dict:\n    hn_rows = map_hn(hn_items)\n    openai_items = parse_rss(openai_body,\
+          \ \"OpenAI Blog\", 5)\n    qbitai_items = parse_rss(qbitai_body, \"量子位\"\
+          , 4)\n\n    blocked = set()\n    for line in (history_urls or \"\").splitlines():\n\
+          \        key = normalize_url(line)\n        if key:\n            blocked.add(key)\n\
+          \n    kept = []\n    seen = set()\n    for item in hn_rows + openai_items\
+          \ + qbitai_items:\n        key = normalize_url(item[\"url\"])\n        if\
+          \ not key or key in seen or key in blocked:\n            continue\n    \
+          \    seen.add(key)\n        item[\"url\"] = key\n        kept.append(item)\n\
+          \n    kept.sort(key=lambda row: (row[\"weight\"], row[\"score\"]), reverse=True)\n\
+          \    deduped_total = len(kept)\n    kept = pick_top(kept)\n    for index,\
+          \ item in enumerate(kept):\n        item[\"index\"] = index\n\n    merged\
+          \ = len(hn_rows) + len(openai_items) + len(qbitai_items)\n    warnings =\
+          \ []\n    for label, body in ((\"OpenAI Blog\", openai_body), (\"量子位\",\
+          \ qbitai_body)):\n        if looks_like_html(body):\n            warnings.append(label\
+          \ + \" 返回的是网页不是 RSS，feed 地址可能已经失效\")\n    stats = {\n        \"hn_raw\"\
+          : len(hn_rows),\n        \"openai_raw\": len(openai_items),\n        \"\
+          qbitai_raw\": len(qbitai_items),\n        \"merged_raw\": merged,\n    \
+          \    \"after_url_dedup\": deduped_total,\n        \"selected\": len(kept),\n\
+          \        \"dropped\": max(0, merged - deduped_total),\n        \"missing_sources\"\
+          : [\n            \"%s(%d)\" % (label, count)\n            for label, count\
+          \ in ((\"HN\", len(hn_rows)), (\"OpenAI Blog\", len(openai_items)), (\"\
+          量子位\", len(qbitai_items)))\n            if count == 0\n        ],\n    \
+          \    \"warnings\": warnings,\n        \"selected_by_source\": {\n      \
+          \      origin: sum(1 for row in kept if (row.get(\"origin\") or \"?\") ==\
+          \ origin)\n            for origin in sorted({row.get(\"origin\") or \"?\"\
+          \ for row in kept})\n        },\n    }\n    return {\n        \"items\"\
+          : kept,\n        \"items_json\": json.dumps(kept, ensure_ascii=False),\n\
+          \        \"stats\": json.dumps(stats, ensure_ascii=False),\n        \"run_date\"\
+          : today_in_beijing(),\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          items:
+            children: null
+            type: array[object]
+          items_json:
+            children: null
+            type: string
+          run_date:
+            children: null
+            type: string
+          stats:
+            children: null
+            type: string
+        selected: false
+        title: 解析与去重
+        type: code
+        variables:
+        - value_selector:
+          - code_hn
+          - stories
+          value_type: array[object]
+          variable: hn_items
+        - value_selector:
+          - http_openai
+          - body
+          value_type: string
+          variable: openai_body
+        - value_selector:
+          - http_qbitai
+          - body
+          value_type: string
+          variable: qbitai_body
+        - value_selector:
+          - start_node
+          - history_urls
+          value_type: string
+          variable: history_urls
+      height: 54
+      id: code_parse
+      position:
+        x: 1246
+        y: 320
+      positionAbsolute:
+        x: 1246
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 把 code_parse 的文章列表写成中文 Markdown 日报，分「今日头条 / 重要进展 / 值得关注 / 链接汇总」四档，每条给
+          1-5 重要性评分。提示词唯一来源是 prompts/llm_daily_report_prompt.md，改完跑 tools/sync_llm_prompt.py
+          同步。
+        memory:
+          enabled: false
+          window:
+            enabled: false
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: "你是「AI 日报」的主编，把当天抓取的原始条目整理成一份可以直接发给读者看的中文 Markdown 日报。\n\n输入是一批文章，字段含义：\n\
+            title 原标题（中文或英文）、url 原文链接、raw 原文摘要片段（可能为空或被截断）、\norigin 来源（HN / OpenAI\
+            \ Blog / 量子位）、score 来源热度分（可能为 0）、published 发布时间（可能为空）。\n\n写作规则：\n1. 只依据输入里能看到的内容写，不要补充外部知识，不要编造事实、数字、时间或人物。\n\
+            2. title 是英文就翻译成中文标题，30 字以内；已经是中文就沿用原标题，只在明显啰嗦时精简。\n3. 每条写 1-3 句中文摘要：先说发生了什么，再说为什么值得关注、对从业者意味着什么。不要用「本文」「据悉」「值得注意」这类空话开头。\n\
+            4. 同一件事被多个来源报道时，只保留信息最完整的一条，其余直接丢弃，不要重复占版面。\n5. raw 为空或信息太少时，摘要就基于标题写一句，不要硬凑字数，也不要因此编造细节。\n\
+            6. 给每条打一个 1-5 的整数重要性评分，判断的是事件本身的分量，不是来源权重，同一批文章里不要所有条目都给同一个分数：\n   5 =\
+            \ 重大模型或产品发布、行业格局级事件\n   4 = 重要的能力或产品更新\n   3 = 有价值的进展、研究或观点\n   2 = 常规资讯，了解即可\n\
+            \   1 = 边缘内容\n7. 分档规则：\n   今日头条：只放评分最高的 1-2 条，评分须达到 4；没有够格的条目就写「今日无」。\n\
+            \   重要进展：放其余评分 4-5 的条目，最多 5 条；没有就写「今日无」。\n   值得关注：放评分 1-3 的条目，最多 6 条；没有就写「今日无」。\n\
+            \   链接汇总：按上面的先后顺序，列出本次进入日报的每一条。\n8. 每条固定按「标题（含评分）→ 摘要 → 来源与原文链接」的顺序展示，链接必须原样使用输入里的\
+            \ url。\n9. 输出就是日报本身：纯中文 Markdown，不要用 ``` 包裹整篇，不要写「好的」「以下是」之类的话，也不要输出思考过程或\
+            \ JSON。\n"
+        - role: user
+          text: '日期：{{#code_parse.run_date#}}
+
+
+            今天抓取到的文章，JSON 数组，已按来源权重和热度排序：
+
+
+            {{#code_parse.items_json#}}
+
+
+            请输出中文 Markdown 日报，结构、字段名和顺序都保持下面这样：
+
+
+            # AI 日报 · {{#code_parse.run_date#}}
+
+
+            > 共 N 条 · 来源：<去重后的来源列表>
+
+
+            ## 今日头条
+
+
+            ### 1. <中文标题> · 重要性 5/5
+
+            <1-3 句中文摘要>
+
+            来源：<来源> · [原文](<url>)
+
+
+            ## 重要进展
+
+
+            ### 2. <中文标题> · 重要性 4/5
+
+            <1-3 句中文摘要>
+
+            来源：<来源> · [原文](<url>)
+
+
+            ## 值得关注
+
+
+            ### 3. <中文标题> · 重要性 3/5
+
+            <1-3 句中文摘要>
+
+            来源：<来源> · [原文](<url>)
+
+
+            ## 链接汇总
+
+
+            - [<中文标题>](<url>) — <来源> · 3/5
+
+
+            要求：
+
+            - 正文里每条都要带 `摘要` 和 `评分`，没有入选的条目不要出现在任何分档里。
+
+            - url 必须和输入完全一致，不要改写、不要补全、不要编造新链接。
+
+            - 某一档没有内容时，在标题下写一行「今日无」，不要删掉这个分档标题。
+
+            '
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 10000
+            multiplier: 2
+          max_retries: 2
+          retry_interval: 2000
+        selected: false
+        structured_output:
+          enabled: false
+        title: 生成日报
+        type: llm
+        vision:
+          configs:
+            variable_selector: []
+          enabled: false
+      height: 98
+      id: llm_sum
+      position:
+        x: 1550
+        y: 320
+      positionAbsolute:
+        x: 1550
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        code: "import datetime\nimport re\n\n# 分档标题：出现两个以上才认为模型真的按格式写了日报\nSECTION_KEYWORDS\
+          \ = (\"今日头条\", \"重要进展\", \"值得关注\", \"链接汇总\")\n\n# 抓日报里的链接：markdown 链接、<url>、裸链接都能命中\n\
+          URL_RE = re.compile(r\"https?://[^\\s)\\]>（），。；、\\\"']+\")\n# 末尾的反斜杠是模型在\
+          \ markdown 里转义右括号留下的（.../ \\)），不剥掉会污染去重 key\nTRAILING_CHARS = \".,;:!?、。；：！？\\\
+          \\\"\n\nFALLBACK_TOP_N = 12\n\n\ndef strip_wrappers(text: str) -> str:\n\
+          \    \"\"\"丢掉推理块、HTML 注释，以及模型给整篇日报套上的 markdown 围栏。\"\"\"\n    body = (text\
+          \ or \"\").strip()\n    body = re.sub(r\"(?is)<think>.*?</think>\", \" \"\
+          , body)\n    body = re.sub(r\"(?is)<!--.*?-->\", \" \", body)\n    body\
+          \ = body.strip()\n    if body.startswith(\"```\"):\n        body = re.sub(r\"\
+          ^```[a-zA-Z]*[ \\t]*\\r?\\n\", \"\", body)\n        body = re.sub(r\"\\\
+          r?\\n?```[ \\t]*$\", \"\", body)\n    # 模型常把链接写成 [原文](https://.../\\)，转义出来的反斜杠会让链接点开\
+          \ 404\n    body = re.sub(r\"(https?://[^\\s)]*?)\\\\\\)\", r\"\\1)\", body)\n\
+          \    return body.strip()\n\n\ndef extract_urls(markdown: str) -> list:\n\
+          \    \"\"\"按出现顺序取出日报引用到的链接，重复的只保留一次。\"\"\"\n    seen, urls = set(), []\n\
+          \    for raw in URL_RE.findall(markdown or \"\"):\n        url = raw.rstrip(TRAILING_CHARS)\n\
+          \        if url and url not in seen:\n            seen.add(url)\n      \
+          \      urls.append(url)\n    return urls\n\n\ndef looks_like_report(markdown:\
+          \ str) -> bool:\n    \"\"\"模型写了分档日报，而不是报错、道歉或者 JSON。\"\"\"\n    if not markdown.strip()\
+          \ or not extract_urls(markdown):\n        return False\n    return sum(1\
+          \ for word in SECTION_KEYWORDS if word in markdown) >= 2\n\n\ndef today_in_beijing()\
+          \ -> str:\n    now = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=8)\n\
+          \    return now.strftime(\"%Y-%m-%d\")\n\n\ndef importance_of(row: dict)\
+          \ -> int:\n    \"\"\"保底渲染时没有 LLM 评分，用来源权重当重要性近似值。\"\"\"\n    try:\n    \
+          \    weight = int(row.get(\"weight\") or 3)\n    except (TypeError, ValueError):\n\
+          \        weight = 3\n    return min(5, max(1, weight))\n\n\ndef fallback_markdown(items:\
+          \ list, run_date: str, reason: str) -> str:\n    \"\"\"LLM 输出不可用时用 code_parse\
+          \ 的结果拼保底日报，宁可朴素也不能推空消息。\"\"\"\n    rows = [row for row in (items or [])\
+          \ if isinstance(row, dict) and row.get(\"url\")]\n    rows.sort(key=lambda\
+          \ row: (row.get(\"weight\") or 0, row.get(\"score\") or 0), reverse=True)\n\
+          \    rows = rows[:FALLBACK_TOP_N]\n\n    sources = \" / \".join(sorted({row.get(\"\
+          origin\") or \"\" for row in rows if row.get(\"origin\")}))\n    lines =\
+          \ [\n        \"# AI 日报 · \" + run_date,\n        \"\",\n        \"> 共 %d\
+          \ 条 · 来源：%s\" % (len(rows), sources or \"无\"),\n        \"\",\n        \"\
+          <!-- 保底渲染（%s）：LLM 这次没给出可用的日报正文 -->\" % reason,\n        \"\",\n    ]\n \
+          \   for name, group in ((\"今日头条\", rows[:1]), (\"重要进展\", rows[1:3]), (\"\
+          值得关注\", rows[3:])):\n        lines.append(\"## \" + name)\n        lines.append(\"\
+          \")\n        if not group:\n            lines.append(\"今日无\")\n        \
+          \    lines.append(\"\")\n            continue\n        for row in group:\n\
+          \            lines.append(\"### %s · 重要性 %d/5\" % (row.get(\"title\") or\
+          \ \"(无标题)\", importance_of(row)))\n            lines.append((row.get(\"\
+          raw\") or \"\").strip() or \"（摘要缺失，仅保留标题与链接）\")\n            lines.append(\"\
+          来源：%s · [原文](%s)\" % (row.get(\"origin\") or \"\", row.get(\"url\")))\n\
+          \            lines.append(\"\")\n    lines.append(\"## 链接汇总\")\n    lines.append(\"\
+          \")\n    for row in rows:\n        lines.append(\"- [%s](%s) — %s · %d/5\"\
+          \ % (\n            row.get(\"title\") or \"(无标题)\", row.get(\"url\"), row.get(\"\
+          origin\") or \"\", importance_of(row),\n        ))\n    return \"\\n\".join(lines).strip()\n\
+          \n\ndef main(llm_markdown: str, items: list, run_date: str = \"\") -> dict:\n\
+          \    date = (run_date or \"\").strip() or today_in_beijing()\n\n    report\
+          \ = strip_wrappers(llm_markdown)\n    if not looks_like_report(report):\n\
+          \        reason = \"输出为空\" if not report else \"输出不是分档日报\"\n        report\
+          \ = fallback_markdown(items, date, reason)\n\n    urls = extract_urls(report)\n\
+          \    # 让链接回到 code_parse 的归一化形式：跨天去重就是拿这个 key 比对的，\n    # 模型多写一个尾斜杠，第二天就会把同一条再推一遍。\n\
+          \    canonical = {}\n    for row in items or []:\n        if isinstance(row,\
+          \ dict) and row.get(\"url\"):\n            canonical[row[\"url\"].rstrip(\"\
+          /\")] = row[\"url\"]\n    urls = list(dict.fromkeys(canonical.get(url.rstrip(\"\
+          /\"), url) for url in urls))\n    if not urls:\n        urls = [row.get(\"\
+          url\") for row in (items or []) if isinstance(row, dict) and row.get(\"\
+          url\")]\n\n    return {\n        \"markdown\": report,\n        \"pushed_urls\"\
+          : urls,\n        \"count\": len(urls),\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          count:
+            children: null
+            type: number
+          markdown:
+            children: null
+            type: string
+          pushed_urls:
+            children: null
+            type: array[string]
+        selected: false
+        title: 组装日报
+        type: code
+        variables:
+        - value_selector:
+          - llm_sum
+          - text
+          value_type: string
+          variable: llm_markdown
+        - value_selector:
+          - code_parse
+          - items
+          value_type: array[object]
+          variable: items
+        - value_selector:
+          - code_parse
+          - run_date
+          value_type: string
+          variable: run_date
+      height: 54
+      id: code_build
+      position:
+        x: 1854
+        y: 320
+      positionAbsolute:
+        x: 1854
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - code_build
+          - markdown
+          value_type: string
+          variable: markdown
+        - value_selector:
+          - code_build
+          - count
+          value_type: number
+          variable: count
+        - value_selector:
+          - code_build
+          - pushed_urls
+          value_type: array[string]
+          variable: pushed_urls
+        - value_selector:
+          - code_parse
+          - stats
+          value_type: string
+          variable: stats
+        selected: false
+        title: 结束
+        type: end
+      height: 90
+      id: end_node
+      position:
+        x: 2462
+        y: 320
+      positionAbsolute:
+        x: 2462
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+  rag_pipeline_variables: []

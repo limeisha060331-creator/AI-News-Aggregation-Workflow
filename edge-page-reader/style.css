@@ -1,0 +1,277 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --fg: #1f2328;
+  --muted: #6b7280;
+  --border: #d7dbe0;
+  --accent: #0f6cbd;
+  --accent-fg: #ffffff;
+  --ok: #16794c;
+  --warn: #a56012;
+  --error: #c0271f;
+  --surface: #f6f7f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1d21;
+    --fg: #e8eaed;
+    --muted: #9aa3ad;
+    --border: #3a3f45;
+    --accent: #4a9eff;
+    --accent-fg: #08131f;
+    --ok: #4cc38a;
+    --warn: #e0a33c;
+    --error: #ff6b60;
+    --surface: #24272c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 13px/1.5 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+
+body.popup {
+  width: 420px;
+  max-height: 600px;
+}
+
+body.options {
+  padding: 28px 20px 48px;
+  font-size: 14px;
+}
+
+.card {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.card h1 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.hint {
+  margin: 0 0 20px;
+  color: var(--muted);
+}
+
+.popup__head {
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.popup__site {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.popup__title {
+  margin: 4px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  max-height: 3.9em;
+  overflow: hidden;
+}
+
+.popup__meta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.popup__toolbar,
+.popup__actions,
+.popup__foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.popup__toolbar {
+  justify-content: space-between;
+}
+
+.popup__actions {
+  border-top: 1px solid var(--border);
+}
+
+.popup__foot {
+  justify-content: space-between;
+  padding-top: 0;
+}
+
+.preview {
+  width: calc(100% - 28px);
+  margin: 0 14px;
+  min-height: 200px;
+  max-height: 280px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font: 12px/1.55 Consolas, "Cascadia Mono", monospace;
+  resize: vertical;
+}
+
+.button {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--accent);
+}
+
+.button--primary {
+  flex: 1;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.button--ghost {
+  background: transparent;
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.field--inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.field__label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field--inline .field__label {
+  margin: 0;
+}
+
+.field__help {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.field input[type="text"],
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--fg);
+  font: inherit;
+}
+
+.field--inline select {
+  width: auto;
+}
+
+.field textarea {
+  font-family: Consolas, "Cascadia Mono", monospace;
+  resize: vertical;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
+.popup__foot .status {
+  margin: 0;
+  flex: 1;
+}
+
+.status--ok {
+  color: var(--ok);
+}
+
+.status--warn {
+  color: var(--warn);
+}
+
+.status--error {
+  color: var(--error);
+}
+
+.link {
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.note {
+  margin-top: 32px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.note ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+
+.note p {
+  margin: 0;
+  color: var(--muted);
+}
+
+code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.18);
+  font-family: Consolas, "Cascadia Mono", monospace;
+  font-size: 0.92em;
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>网页取用器 · 设置</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="options">
+  <main class="card">
+    <h1>网页取用器 · 设置</h1>
+    <p class="hint">这些设置只保存在本机浏览器里。</p>
+
+    <label class="field">
+      <span class="field__label">推送接口地址</span>
+      <input type="text" id="endpoint" placeholder="http://localhost:8787/ingest" autocomplete="off">
+      <span class="field__help">本地接口可以直接用仓库里的 <code>run-ingest-server.cmd</code> 启动。</span>
+    </label>
+
+    <label class="field">
+      <span class="field__label">自定义请求头（JSON，可留空）</span>
+      <textarea id="headers" rows="3" spellcheck="false" placeholder='{"Authorization": "Bearer xxx"}'></textarea>
+    </label>
+
+    <label class="field">
+      <span class="field__label">默认格式</span>
+      <select id="pushFormat">
+        <option value="markdown">Markdown 正文</option>
+        <option value="text">纯文本</option>
+      </select>
+    </label>
+
+    <label class="check">
+      <input type="checkbox" id="autoRead">
+      <span>打开弹窗时自动读取当前页面</span>
+    </label>
+
+    <div class="card__actions">
+      <button class="button button--primary" id="save" type="button">保存</button>
+      <button class="button" id="test" type="button">测试连接</button>
+      <button class="button button--ghost" id="reset" type="button">恢复默认</button>
+    </div>
+
+    <p class="status" id="status"></p>
+
+    <section class="note">
+      <h2>在 Edge 里安装</h2>
+      <ol>
+        <li>打开 <code>edge://extensions</code>，打开左下角“开发人员模式”。</li>
+        <li>点“加载解压缩的扩展”，选择本文件夹 <code>edge-page-reader</code>。</li>
+        <li>点工具栏的拼图图标，把“网页取用器”固定到工具栏。</li>
+      </ol>
+      <p>读取的是当前标签页的正文、标题、作者、发布时间等；页面本身不会上传到任何第三方。</p>
+    </section>
+  </main>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

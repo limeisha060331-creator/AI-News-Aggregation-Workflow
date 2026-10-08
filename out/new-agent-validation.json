@@ -1,0 +1,27 @@
+{
+  "action": "validate-new-agent-dsl",
+  "dsl_file": "D:\\AI-News-Aggregation-Workflow\\dify-ai-news-v1.yml",
+  "target_repo": "D:\\dify",
+  "passed": true,
+  "summary": {
+    "dsl_version": "0.3.1",
+    "target_dsl_version": "0.7.0",
+    "app_mode": "workflow",
+    "agent_package_count": 0,
+    "agent_v2_node_count": 0,
+    "legacy_agent_node_count": 0
+  },
+  "counts": {
+    "errors": 0,
+    "warnings": 1,
+    "info": 0
+  },
+  "findings": [
+    {
+      "level": "warning",
+      "code": "dsl_version_mismatch",
+      "path": "version",
+      "message": "Artifact version is 0.3.1; target checkout reports 0.7.0. Regenerate from target exports."
+    }
+  ]
+}

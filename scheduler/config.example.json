@@ -1,0 +1,15 @@
+{
+  "_说明1": "api_base 是 Dify 的 API 根地址。本地 Docker 部署就是 http://localhost/v1，末尾不要带斜杠。",
+  "_说明2": "api_key 在 Dify 里打开这个应用 → 左侧「访问 API」→ 右上角「API 密钥」→ 创建密钥，复制 app- 开头的那串填到这里。",
+  "_说明3": "history_days 是跨天去重的回溯窗口，当前设为 30 天，与 PRD 里写的 30 天回溯窗口一致。",
+  "_说明4": "pushplus_token 是微信推送用的令牌，在 pushplus.plus 扫码登录后的一对一推送页面复制。留空则只落盘不推送。",
+  "_说明5": "已推送条目存在 scheduler/state/news.db（SQLite），history.json 只是给人看的镜像。要换位置就加一个 store_path 字段，留空则用默认路径。",
+  "_说明6": "这个文件是模板：复制成同目录下的 config.json 再填真实密钥。config.json 已写进 .gitignore，不会被提交。",
+  "api_base": "http://localhost/v1",
+  "api_key": "",
+  "pushplus_token": "",
+  "pushplus_title": "AI 日报",
+  "history_days": 30,
+  "timeout_seconds": 600,
+  "user": "daily-scheduler"
+}

@@ -1,0 +1,693 @@
+app:
+  description: 从 Hacker News、OpenAI Blog、机器之心三个源抓取 AI 资讯，去重后生成中文日报 Markdown 并推送到飞书群。
+  icon: 📰
+  icon_background: '#EFF1F4'
+  icon_type: emoji
+  mode: workflow
+  name: AI 资讯聚合日报
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        knowledge_file_size_limit: 15
+        single_chunk_attachment_limit: 10
+        skill_file_size_limit: 50
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: http-request
+      id: edge-build-feishu
+      source: code_build
+      sourceHandle: source
+      target: http_feishu
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: end
+      id: edge-feishu-end
+      source: http_feishu
+      sourceHandle: source
+      target: end_node
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: http-request
+      id: edge-hn-openai
+      source: http_hn
+      sourceHandle: source
+      target: http_openai
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: code
+      id: edge-jqzx-parse
+      source: http_jqzx
+      sourceHandle: source
+      target: code_parse
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: llm
+        targetType: code
+      id: edge-llm-build
+      source: llm_sum
+      sourceHandle: source
+      target: code_build
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: http-request
+        targetType: http-request
+      id: edge-openai-jqzx
+      source: http_openai
+      sourceHandle: source
+      target: http_jqzx
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: code
+        targetType: llm
+      id: edge-parse-llm
+      source: code_parse
+      sourceHandle: source
+      target: llm_sum
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        iteration_id: null
+        loop_id: null
+        sourceType: start
+        targetType: http-request
+      id: edge-start-hn
+      source: start_node
+      sourceHandle: source
+      target: http_hn
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        code: "import datetime\nimport json\nimport re\n\nTOP_N = 12\n\n\ndef strip_fence(text:\
+          \ str) -> str:\n    body = (text or \"\").strip()\n    if body.startswith(\"\
+          ```\"):\n        body = re.sub(r\"^```[a-zA-Z]*\\s*\", \"\", body)\n   \
+          \     body = re.sub(r\"\\s*```$\", \"\", body)\n    return body.strip()\n\
+          \n\ndef today_in_beijing() -> str:\n    import time\n    return time.strftime(\"\
+          %Y-%m-%d\", time.gmtime(time.time() + 8 * 3600))\n\ndef main(items: list,\
+          \ llm_text: str) -> dict:\n    analyses = {}\n    try:\n        parsed =\
+          \ json.loads(strip_fence(llm_text))\n        for row in parsed.get(\"items\"\
+          , []):\n            try:\n                analyses[int(row.get(\"index\"\
+          ))] = row\n            except (TypeError, ValueError):\n               \
+          \ continue\n    except Exception:\n        analyses = {}\n\n    run_date\
+          \ = today_in_beijing()\n    picked = []\n    for item in items or []:\n\
+          \        row = analyses.get(item.get(\"index\")) or {}\n        if row.get(\"\
+          keep\") is False:\n            continue\n        summary = (row.get(\"summary_zh\"\
+          ) or \"\").strip()\n        title = (row.get(\"title_zh\") or \"\").strip()\
+          \ or item.get(\"title\", \"\")\n        picked.append({\n            \"\
+          title\": title,\n            \"url\": item.get(\"url\", \"\"),\n       \
+          \     \"origin\": item.get(\"origin\", \"\"),\n            \"summary\":\
+          \ summary or (item.get(\"raw\") or \"\")[:120],\n        })\n\n    picked\
+          \ = picked[:TOP_N]\n    sources = \" / \".join(sorted({row[\"origin\"] for\
+          \ row in picked if row[\"origin\"]}))\n    lines = [\n        \"# AI 日报\
+          \ · \" + run_date,\n        \"\",\n        \"共 %d 条 · 来源：%s\" % (len(picked),\
+          \ sources or \"无\"),\n        \"\",\n    ]\n    for index, row in enumerate(picked,\
+          \ 1):\n        lines.append(\"## %d. %s\" % (index, row[\"title\"]))\n \
+          \       if row[\"summary\"]:\n            lines.append(row[\"summary\"])\n\
+          \        lines.append(\"来源：%s · [原文](%s)\" % (row[\"origin\"], row[\"url\"\
+          ]))\n        lines.append(\"\")\n    markdown = \"\\n\".join(lines).strip()\n\
+          \n    payload = {\n        \"msg_type\": \"interactive\",\n        \"card\"\
+          : {\n            \"config\": {\"wide_screen_mode\": True},\n           \
+          \ \"header\": {\n                \"template\": \"blue\",\n             \
+          \   \"title\": {\"tag\": \"plain_text\", \"content\": \"AI 日报 · \" + run_date},\n\
+          \            },\n            \"elements\": [\n                {\"tag\":\
+          \ \"div\", \"text\": {\"tag\": \"lark_md\", \"content\": markdown}}\n  \
+          \          ],\n        },\n    }\n\n    return {\n        \"markdown\":\
+          \ markdown,\n        \"feishu_payload\": json.dumps(payload, ensure_ascii=False),\n\
+          \        \"pushed_urls\": [row[\"url\"] for row in picked],\n        \"\
+          count\": len(picked),\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          count:
+            children: null
+            type: number
+          feishu_payload:
+            children: null
+            type: string
+          markdown:
+            children: null
+            type: string
+          pushed_urls:
+            children: null
+            type: array[string]
+        selected: false
+        title: 组装日报
+        type: code
+        variables:
+        - value_selector:
+          - code_parse
+          - items
+          value_type: array[object]
+          variable: items
+        - value_selector:
+          - llm_sum
+          - text
+          value_type: string
+          variable: llm_text
+      height: 50
+      id: code_build
+      position:
+        x: 1854
+        y: 320
+      positionAbsolute:
+        x: 1854
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        code: "import json\nimport re\nimport xml.etree.ElementTree as ET\nfrom urllib.parse\
+          \ import parse_qsl, urlencode, urlsplit, urlunsplit\n\nTOP_N = 15\nATOM\
+          \ = \"{http://www.w3.org/2005/Atom}\"\nDROP_KEYS = {\"ref\", \"fbclid\"\
+          , \"gclid\", \"spm\", \"from\", \"source\", \"share_token\"}\nENTITIES =\
+          \ (\n    (\"&nbsp;\", \" \"), (\"&amp;\", \"&\"), (\"&lt;\", \"<\"),\n \
+          \   (\"&gt;\", \">\"), (\"&quot;\", '\"'), (\"&#39;\", \"'\"),\n)\n\n\n\
+          def normalize_url(raw: str) -> str:\n    if not raw:\n        return \"\"\
+          \n    raw = raw.strip()\n    try:\n        parts = urlsplit(raw)\n    except\
+          \ Exception:\n        return raw\n    host = (parts.hostname or \"\").lower()\n\
+          \    if not host:\n        return raw\n    query = []\n    for key, value\
+          \ in parse_qsl(parts.query, keep_blank_values=False):\n        low = key.lower()\n\
+          \        if low.startswith(\"utm_\") or low in DROP_KEYS:\n            continue\n\
+          \        query.append((key, value))\n    path = parts.path.rstrip(\"/\"\
+          ) or \"/\"\n    return urlunsplit((\"https\", host, path, urlencode(query),\
+          \ \"\"))\n\n\ndef clean_text(value) -> str:\n    text = value or \"\"\n\
+          \    text = re.sub(r\"<[^>]+>\", \" \", text)\n    for src, dst in ENTITIES:\n\
+          \        text = text.replace(src, dst)\n    return re.sub(r\"\\s+\", \"\
+          \ \", text).strip()\n\n\ndef parse_rss(xml_text: str, source: str, weight:\
+          \ int) -> list:\n    items = []\n    if not xml_text:\n        return items\n\
+          \    try:\n        root = ET.fromstring(xml_text.strip())\n    except Exception:\n\
+          \        return items\n    for node in root.iter(\"item\"):\n        title\
+          \ = clean_text(node.findtext(\"title\"))\n        link = (node.findtext(\"\
+          link\") or \"\").strip()\n        if not title or not link:\n          \
+          \  continue\n        items.append({\n            \"title\": title,\n   \
+          \         \"url\": link,\n            \"origin\": source,\n            \"\
+          weight\": weight,\n            \"score\": 0,\n            \"published\"\
+          : (node.findtext(\"pubDate\") or \"\").strip(),\n            \"raw\": clean_text(node.findtext(\"\
+          description\"))[:400],\n        })\n    for node in root.iter(ATOM + \"\
+          entry\"):\n        title = clean_text(node.findtext(ATOM + \"title\"))\n\
+          \        link_node = node.find(ATOM + \"link\")\n        link = link_node.get(\"\
+          href\") if link_node is not None else \"\"\n        if not title or not\
+          \ link:\n            continue\n        items.append({\n            \"title\"\
+          : title,\n            \"url\": link.strip(),\n            \"origin\": source,\n\
+          \            \"weight\": weight,\n            \"score\": 0,\n          \
+          \  \"published\": (node.findtext(ATOM + \"updated\") or \"\").strip(),\n\
+          \            \"raw\": clean_text(node.findtext(ATOM + \"summary\"))[:400],\n\
+          \        })\n    return items\n\n\ndef parse_hn(body: str) -> list:\n  \
+          \  items = []\n    if not body:\n        return items\n    try:\n      \
+          \  payload = json.loads(body)\n    except Exception:\n        return items\n\
+          \    for hit in payload.get(\"hits\", []):\n        title = clean_text(hit.get(\"\
+          title\"))\n        if not title:\n            continue\n        url = hit.get(\"\
+          url\") or (\n            \"https://news.ycombinator.com/item?id=\" + str(hit.get(\"\
+          objectID\", \"\"))\n        )\n        items.append({\n            \"title\"\
+          : title,\n            \"url\": url,\n            \"origin\": \"HN\",\n \
+          \           \"weight\": 3,\n            \"score\": int(hit.get(\"points\"\
+          ) or 0),\n            \"published\": hit.get(\"created_at\") or \"\",\n\
+          \            \"raw\": clean_text(hit.get(\"story_text\"))[:400],\n     \
+          \   })\n    return items\n\n\ndef main(hn_body: str, openai_body: str, jqzx_body:\
+          \ str, history_urls: str) -> dict:\n    hn_items = parse_hn(hn_body)\n \
+          \   openai_items = parse_rss(openai_body, \"OpenAI Blog\", 5)\n    jqzx_items\
+          \ = parse_rss(jqzx_body, \"机器之心\", 4)\n\n    blocked = set()\n    for line\
+          \ in (history_urls or \"\").splitlines():\n        key = normalize_url(line)\n\
+          \        if key:\n            blocked.add(key)\n\n    kept = []\n    seen\
+          \ = set()\n    for item in hn_items + openai_items + jqzx_items:\n     \
+          \   key = normalize_url(item[\"url\"])\n        if not key or key in seen\
+          \ or key in blocked:\n            continue\n        seen.add(key)\n    \
+          \    item[\"url\"] = key\n        kept.append(item)\n\n    kept.sort(key=lambda\
+          \ row: (row[\"weight\"], row[\"score\"]), reverse=True)\n    kept = kept[:TOP_N]\n\
+          \    for index, item in enumerate(kept):\n        item[\"index\"] = index\n\
+          \n    merged = len(hn_items) + len(openai_items) + len(jqzx_items)\n   \
+          \ stats = {\n        \"hn_raw\": len(hn_items),\n        \"openai_raw\"\
+          : len(openai_items),\n        \"jqzx_raw\": len(jqzx_items),\n        \"\
+          merged_raw\": merged,\n        \"after_url_dedup\": len(kept),\n       \
+          \ \"dropped\": max(0, merged - len(kept)),\n    }\n    return {\n      \
+          \  \"items\": kept,\n        \"items_json\": json.dumps(kept, ensure_ascii=False),\n\
+          \        \"stats\": json.dumps(stats, ensure_ascii=False),\n    }\n"
+        code_language: python3
+        desc: ''
+        outputs:
+          items:
+            children: null
+            type: array[object]
+          items_json:
+            children: null
+            type: string
+          stats:
+            children: null
+            type: string
+        selected: false
+        title: 解析与去重
+        type: code
+        variables:
+        - value_selector:
+          - http_hn
+          - body
+          value_type: string
+          variable: hn_body
+        - value_selector:
+          - http_openai
+          - body
+          value_type: string
+          variable: openai_body
+        - value_selector:
+          - http_jqzx
+          - body
+          value_type: string
+          variable: jqzx_body
+        - value_selector:
+          - start_node
+          - history_urls
+          value_type: string
+          variable: history_urls
+      height: 50
+      id: code_parse
+      position:
+        x: 1246
+        y: 320
+      positionAbsolute:
+        x: 1246
+        y: 320
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        desc: ''
+        outputs:
+        - value_selector:
+          - code_build
+          - markdown
+          value_type: string
+          variable: markdown
+        - value_selector:
+          - code_build
+          - count
+          value_type: number
+          variable: count
+        - value_selector:
+          - code_build
+          - pushed_urls
+          value_type: array[string]
+          variable: pushed_urls
+        - value_selector:
+          - code_parse
+          - stats
+          value_type: string
+          variable: stats
+        - value_selector:
+          - http_feishu
+          - status_code
+          value_type: number
+          variable: feishu_status
+        selected: false
+        title: 结束
+        type: end
+      height: 191
+      id: end_node
+      position:
+        x: 2462
+        y: 320
+      positionAbsolute:
+        x: 2462
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: '{{#code_build.feishu_payload#}}'
+          type: raw-text
+        desc: 推送飞书群机器人。把 URL 换成你自己的 webhook 地址；暂时没有就删掉这个节点。
+        headers: 'Content-Type: application/json
+
+          '
+        method: post
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: false
+            max_interval: 10000
+            multiplier: 2
+          max_retries: 2
+          retry_interval: 3000
+        selected: false
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 推送飞书
+        type: http-request
+        url: https://open.feishu.cn/open-apis/bot/v2/hook/REPLACE-WITH-YOUR-TOKEN
+      height: 182
+      id: http_feishu
+      position:
+        x: 2158
+        y: 320
+      positionAbsolute:
+        x: 2158
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: Hacker News 高分故事，Algolia 搜索接口一次返回整个列表，不需要循环。
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        selected: false
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取 HN
+        type: http-request
+        url: https://hn.algolia.com/api/v1/search?tags=story&numericFilters=points%3E100&hitsPerPage=30
+      height: 182
+      id: http_hn
+      position:
+        x: 334
+        y: 320
+      positionAbsolute:
+        x: 334
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: 机器之心 RSS。若源站改版导致 404，可换成其它中文源。
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        selected: false
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取机器之心
+        type: http-request
+        url: https://www.jiqizhixin.com/rss
+      height: 134
+      id: http_jqzx
+      position:
+        x: 942
+        y: 320
+      positionAbsolute:
+        x: 942
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        authorization:
+          type: no-auth
+        body:
+          data: ''
+          type: none
+        desc: OpenAI 官方博客 RSS。若返回 404，改成 https://openai.com/blog/rss.xml
+        headers: ''
+        method: get
+        params: ''
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 15000
+            multiplier: 2
+          max_retries: 3
+          retry_interval: 2000
+        selected: false
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+        title: 抓取 OpenAI Blog
+        type: http-request
+        url: https://openai.com/news/rss.xml
+      height: 134
+      id: http_openai
+      position:
+        x: 638
+        y: 320
+      positionAbsolute:
+        x: 638
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        desc: 生成中文标题与摘要，同时把同一事件的重复条目聚成一簇并标记 keep=false。
+        memory:
+          enabled: false
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: false
+            size: 50
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: deepseek-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - id: 54630d62-e330-4cdf-9fa5-0577defea5fc
+          role: system
+          text: '你是 AI 资讯编辑，负责把当天抓取的原始条目整理成中文日报素材。
+
+
+            规则：
+
+            1. 只依据给出的原文写，不要补充外部信息，不要编造事实或数字。
+
+            2. 同一件事如果被多个源报道，保留信息最完整的一条标记 keep=true，其余标记 keep=false。
+
+            3. summary_zh 用 1-3 句中文，说明发生了什么以及为什么值得关注，不要写"本文""据悉"这类空话。
+
+            4. title_zh 是中文标题，30 字以内；原文已经是中文就沿用原标题。
+
+            5. 只输出 JSON，不要输出解释文字，不要用 markdown 代码块包裹。
+
+            '
+        - id: 1e058b71-2121-497b-a528-3795184404a4
+          role: user
+          text: "今天抓取到的条目如下，index 是条目的唯一编号：\n\n{{#code_parse.items_json#}}\n\n请严格按这个结构输出\
+            \ JSON：\n{\n  \"items\": [\n    {\"index\": 0, \"keep\": true, \"title_zh\"\
+            : \"中文标题\", \"summary_zh\": \"中文摘要\"}\n  ]\n}\n\n每个输入 index 都必须出现一次。\n"
+        retry_config:
+          enabled: true
+          exponential_backoff:
+            enabled: true
+            max_interval: 10000
+            multiplier: 2
+          max_retries: 2
+          retry_interval: 2000
+        selected: false
+        structured_output:
+          enabled: false
+        title: LLM 摘要与聚类
+        type: llm
+        vision:
+          configs:
+            variable_selector: []
+          enabled: false
+      height: 146
+      id: llm_sum
+      position:
+        x: 1550
+        y: 320
+      positionAbsolute:
+        x: 1550
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 241
+      zIndex: 0
+    - data:
+        desc: 入参 history_urls 由外部传入最近已推送的 URL（每行一个），用于跨天去重；留空则只做当天去重。
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: 已推送URL列表
+          max_length: 20000
+          options: []
+          required: false
+          type: paragraph
+          variable: history_urls
+      height: 167
+      id: start_node
+      position:
+        x: 30
+        y: 320
+      positionAbsolute:
+        x: 30
+        y: 320
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    viewport:
+      x: -1902.486824588519
+      y: -2.788877295848863
+      zoom: 0.8743414616025242
+  rag_pipeline_variables: []
