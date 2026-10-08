@@ -162,6 +162,7 @@ flowchart LR
 | `tools/` | 校验、同步、冒烟、周报、状态库与本地接收端等工具 |
 | `edge-page-reader/` | Edge Manifest V3 网页取用扩展 |
 | `out/` | Dify 应用备份与导入校验结果 |
+| `archive/` | 历史快照：导入前的旧版 Dify 应用导出，含早期已被替换的飞书推送节点 |
 | `PRD.md` | 产品需求文档，含 21 条功能点与 KPI 定义 |
 
 **· 调度脚本支持的运行模式**
