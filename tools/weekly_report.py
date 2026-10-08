@@ -28,6 +28,26 @@ SOURCE_ALIASES = {
     "openai": "openai", "openai blog": "openai",
     "jqzx": "jqzx", "量子位": "jqzx", "机器之心": "jqzx",
 }
+# 抓取数字段名。第三源改过名：早期节点写 jqzx_raw，现在是 qbitai_raw，
+# 只认其中一个会把另一个源的历史数据统计成 0
+SOURCE_RAW_KEYS = {
+    "hn": ("hn_raw",),
+    "openai": ("openai_raw",),
+    "jqzx": ("qbitai_raw", "jqzx_raw"),
+}
+
+
+def raw_count(stats, key):
+    """取某个源的抓取数，返回 (条数, 日志里是否记录了该字段)。
+
+    字段缺失和「明确记了 0 条」是两回事：缺失说明那次运行的节点版本没这个字段，
+    不能算成零产出，否则源质量统计会把老日志误判成源失效。
+    """
+    for name in SOURCE_RAW_KEYS[key]:
+        value = stats.get(name)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return int(value), True
+    return 0, False
 
 
 def load_runs(log_dir=LOG_DIR):
@@ -75,11 +95,12 @@ def aggregate(runs):
         "total_tokens": 0,
         "elapsed_seconds": 0.0,
         "funnel": {"merged_raw": 0, "after_url_dedup": 0, "semantic_kept": 0,
-                   "semantic_dropped": 0, "pushed": 0},
+                   "semantic_dropped": 0, "pushed": 0, "selected": 0},
         "by_day": [],
         "sources": {},
         "semantic": {"runs_with_data": 0, "dropped": 0, "suspect": 0,
-                     "max_history_score": [], "dropped_detail": [], "suspect_detail": []},
+                     "max_history_score": [], "dropped_detail": [], "suspect_detail": [],
+                     "runs_without_data": 0},
         "issues": [],
     }
 
@@ -110,14 +131,18 @@ def aggregate(runs):
 
         merged = number("merged_raw")
         after_url = number("after_url_dedup")
-        semantic_kept = number("semantic_kept")
         semantic_dropped = number("semantic_dropped")
         pushed = int(record.get("count") or 0)
         has_semantic = "semantic_kept" in stats or "semantic_dropped" in stats
+        # 语义去重跑在 TOP_N 截断之后的候选上，不是跑在全部去重结果上。
+        # 老日志没有 selected 字段，就退回用 URL 去重后的条数当候选数，避免凭空造一级。
+        selected = number("selected") or (after_url if "selected" not in stats else 0)
+        semantic_kept = number("semantic_kept") if has_semantic else selected
 
         summary["funnel"]["merged_raw"] += merged
         summary["funnel"]["after_url_dedup"] += after_url
-        summary["funnel"]["semantic_kept"] += semantic_kept if has_semantic else after_url
+        summary["funnel"]["selected"] += selected
+        summary["funnel"]["semantic_kept"] += semantic_kept
         summary["funnel"]["semantic_dropped"] += semantic_dropped
         summary["funnel"]["pushed"] += pushed
 
@@ -126,6 +151,7 @@ def aggregate(runs):
             "status": status,
             "merged_raw": merged,
             "after_url_dedup": after_url,
+            "selected": selected,
             "semantic_dropped": semantic_dropped,
             "pushed": pushed,
             "history_used": record.get("history_used"),
@@ -136,8 +162,8 @@ def aggregate(runs):
         selected_by_source = stats.get("selected_by_source") or {}
         for key, label in SOURCE_LABELS.items():
             entry = summary["sources"][label]
-            raw = number("%s_raw" % key)
-            if raw or key in ("hn", "openai", "jqzx"):
+            raw, reported = raw_count(stats, key)
+            if reported:
                 entry["raw"] += raw
                 entry["days"] += 1
                 if raw == 0:
@@ -156,6 +182,8 @@ def aggregate(runs):
                 summary["semantic"]["max_history_score"].append(round(float(score), 4))
             summary["semantic"]["dropped_detail"].extend(stats.get("dropped_detail") or [])
             summary["semantic"]["suspect_detail"].extend(stats.get("suspect_detail") or [])
+        else:
+            summary["semantic"]["runs_without_data"] += 1
 
         for warning in stats.get("warnings") or []:
             summary["issues"].append("%s 警告：%s" % (record.get("date"), warning))
@@ -197,23 +225,27 @@ def render_markdown(summary, days, broken):
     lines.append("| --- | --- | --- |")
     lines.append("| 抓取合并 | %d | — |" % funnel["merged_raw"])
     lines.append("| URL 去重后 | %d | %s |" % (funnel["after_url_dedup"], _ratio(funnel["after_url_dedup"], funnel["merged_raw"])))
-    lines.append("| 语义去重后 | %d | %s |" % (funnel["semantic_kept"], _ratio(funnel["semantic_kept"], funnel["after_url_dedup"])))
+    lines.append("| 进入候选（截断后） | %d | %s |" % (funnel["selected"], _ratio(funnel["selected"], funnel["after_url_dedup"])))
+    lines.append("| 语义去重后 | %d | %s |" % (funnel["semantic_kept"], _ratio(funnel["semantic_kept"], funnel["selected"])))
     lines.append("| 实际推送 | %d | %s |" % (funnel["pushed"], _ratio(funnel["pushed"], funnel["semantic_kept"])))
     lines.append("")
-    lines.append("> URL 去重与语义去重的差值就是「同一事件不同链接」的重复量。"
-                 "语义去重数 = %d 条；语义去重后到实际推送之间还包含排序截断（TOP_N 限制）。"
-                 % funnel["semantic_dropped"])
+    lines.append("> 语义去重跑在截断之后的候选上，所以它跟 URL 去重不是同一批条目，两级要分开看："
+                 "URL 去重反映同一链接的重复，截断反映每条源配额与 TOP_N 上限，"
+                 "语义去重反映同一事件不同链接的重复。")
+    lines.append(">")
+    lines.append("> 语义去重累计拦下 %d 条；其中 %d 次运行没有回传语义数据，这几级按候选数计。"
+                 % (funnel["semantic_dropped"], summary["semantic"]["runs_without_data"]))
     lines.append("")
 
     if summary["by_day"]:
         lines.append("## 每日明细")
         lines.append("")
-        lines.append("| 日期 | 状态 | 抓取 | URL 去重后 | 语义去重 | 推送 | 历史条目 |")
-        lines.append("| --- | --- | --- | --- | --- | --- | --- |")
+        lines.append("| 日期 | 状态 | 抓取 | URL 去重后 | 候选 | 语义判重 | 推送 | 历史条目 |")
+        lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
         for row in summary["by_day"]:
-            lines.append("| %s | %s | %s | %s | %s | %s | %s |" % (
+            lines.append("| %s | %s | %s | %s | %s | %s | %s | %s |" % (
                 row["date"], row["status"] or "-", row["merged_raw"], row["after_url_dedup"],
-                row["semantic_dropped"], row["pushed"],
+                row["selected"], row["semantic_dropped"], row["pushed"],
                 "-" if row["history_used"] is None else row["history_used"],
             ))
         lines.append("")
